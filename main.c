@@ -29,13 +29,13 @@ typedef struct Dictionary {
 } Dictionary;
 
 
-void insert_into_dict( char* line );
-void init_dict();
-bool is_dict_full();
-void get_substr( char* str, char* sub , int start, int len ){
+void get_message(char *str, char *sub, int start, int len){
     memcpy( sub, &str[ start ], len );
     sub[ len ] = '\0';
 }
+void insert_into_dict( char* line );
+void init_dict();
+bool is_dict_full();
 void open_files( FILE* files[], char** file_names, int size );
 void realloc_dict();
 void replace_first( char* str, char old, char new );
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 
     listen( sock, 5 );
 
-    int msgsock;
+    int msgsock = 0;
     struct sockaddr_un  client;
     open_files( files, argv, argc - 1 );
     char buffer[ 1024 ];
@@ -88,8 +88,8 @@ int main(int argc, char** argv) {
 
         char* message = malloc( strlen(buffer) );
         int to_be_read = strlen( buffer ) - POS;
-        get_substr( buffer, message, POS, to_be_read );
-        write_into_files( files, message, argc );
+        get_message(buffer, message, POS, to_be_read);
+        write_into_files( files, buffer, argc );
         insert_into_dict(message);
 
         printf( "%s \n", buffer );
@@ -109,7 +109,7 @@ void sig_handler( int sig_num) {
             max_occur = dictionary.sentences[ i ].occurence;
         }
     }
-    printf("\n%d --> %s\nEND\n", dictionary.sentences[ max_occur_index ].occurence, dictionary.sentences[ max_occur_index ].sentence);
+    printf("\n%d --> %s\nEND", dictionary.sentences[ max_occur_index ].occurence, dictionary.sentences[ max_occur_index ].sentence);
     for ( int i = 0; i < dictionary.size; ++i ) {
         free( dictionary.sentences[ i ].sentence );
     }

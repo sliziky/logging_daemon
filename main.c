@@ -29,18 +29,18 @@ typedef struct Dictionary {
 } Dictionary;
 
 
-void get_message(char *str, char *sub, int start, int len){
+void insert_into_dict( char* message );
+void init_dict();
+bool is_dict_full();
+void get_substr( char* str, char* sub , int start, int len ){
     memcpy( sub, &str[ start ], len );
     sub[ len ] = '\0';
 }
-void insert_into_dict( char* line );
-void init_dict();
-bool is_dict_full();
 void open_files( FILE* files[], char** file_names, int size );
 void realloc_dict();
 void replace_first( char* str, char old, char new );
 void sig_handler( int );
-void write_into_files( FILE* files[], char* line, int size );
+void write_into_files( FILE* files[], char* message, int size );
 
 Dictionary dictionary;
 
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 
     listen( sock, 5 );
 
-    int msgsock = 0;
+    int msgsock;
     struct sockaddr_un  client;
     open_files( files, argv, argc - 1 );
     char buffer[ 1024 ];
@@ -88,8 +88,8 @@ int main(int argc, char** argv) {
 
         char* message = malloc( strlen(buffer) );
         int to_be_read = strlen( buffer ) - POS;
-        get_message(buffer, message, POS, to_be_read);
-        write_into_files( files, buffer, argc );
+        get_substr( buffer, message, POS, to_be_read );
+        write_into_files( files, message, argc );
         insert_into_dict(message);
 
         printf( "%s \n", buffer );
@@ -109,7 +109,7 @@ void sig_handler( int sig_num) {
             max_occur = dictionary.sentences[ i ].occurence;
         }
     }
-    printf("\n%d --> %s\nEND", dictionary.sentences[ max_occur_index ].occurence, dictionary.sentences[ max_occur_index ].sentence);
+    printf("\n%d --> %s\nEND\n", dictionary.sentences[ max_occur_index ].occurence, dictionary.sentences[ max_occur_index ].sentence);
     for ( int i = 0; i < dictionary.size; ++i ) {
         free( dictionary.sentences[ i ].sentence );
     }
@@ -125,39 +125,40 @@ void replace_first( char* str, char old, char new ) {
             break;
         }
     }
-    str[ counter ] = '\0';
+    str[ counter ] = new;
 }
 
-int line_pos( char * line) {
+int message_pos( char *message ) {
     for ( int i = 0; i < dictionary.size; ++i ) {
-        if (strcmp(dictionary.sentences[ i ].sentence,line) == 0) {
+        if ( strcmp(dictionary.sentences[ i ].sentence, message) == 0 ) {
             return i;
         }
     }
     return -1;
 }
 
-bool line_exists( char* line) {
+bool message_exists( char* message ) {
     for ( int i = 0; i < dictionary.size; ++i ) {
-        if (strcmp(dictionary.sentences[ i ].sentence,line) == 0) {
+        if ( strcmp(dictionary.sentences[ i ].sentence,message) == 0 ) {
             return true;
         }
     }
     return false;
 }
 
-void insert_into_dict( char* line ) {
+void insert_into_dict( char* message ) {
     if ( is_dict_full() ) {
-        realloc_dict( );
+        realloc_dict();
     }
-    if ( !line_exists( line ) ) {
-        dictionary.sentences[dictionary.size].sentence = malloc( strlen(line) + 1 );
-        strcpy( dictionary.sentences[ dictionary.size ].sentence, line );
+    if ( !message_exists(message) ) {
+        // add message into the dictionary
+        dictionary.sentences[ dictionary.size ].sentence = malloc( strlen(message) + 1 );
+        strcpy( dictionary.sentences[ dictionary.size ].sentence, message );
         dictionary.sentences[ dictionary.size ].occurence = 1;
         dictionary.size++;
     }
     else {
-        dictionary.sentences[ line_pos(line) ].occurence++;
+        dictionary.sentences[ message_pos(message) ].occurence++;
     }
 }
 
@@ -168,24 +169,25 @@ bool is_dict_full() {
 void init_dict() {
     dictionary.size = 0;
     dictionary.capacity = 10;
-    dictionary.sentences = malloc(sizeof(Sentence) * dictionary.capacity);
+    dictionary.sentences = malloc( sizeof(Sentence) * dictionary.capacity );
 }
 
 void realloc_dict() {
     dictionary.capacity *= 2;
-    dictionary.sentences = (Sentence*) realloc(dictionary.sentences, dictionary.capacity * sizeof(Sentence));
+    dictionary.sentences = (Sentence*) realloc( dictionary.sentences, dictionary.capacity * sizeof(Sentence) );
 }
 
-void write_into_files( FILE* files[], char* line, int size ) {
-    for ( int i = 0; i < size; ++i ) {
-        fprintf( files[i], "%s\n", line );
+void write_into_files( FILE* files[], char* message, int sz ) {
+    for ( int i = 0; i < sz; ++i ) {
+        fprintf( files[i], "%s\n", message );
     }
 }
 
-void open_files(FILE* files[], char** file_names, int s) {
-    for ( int i = 0; i < s; ++i ) {
+void open_files( FILE* files[], char** file_names, int sz ) {
+    for ( int i = 0; i < sz; ++i ) {
         if ( strcmp(file_names[ i ], "-f") != 0 ) {
-            files[i] = fopen(file_names[i + 1], "a+");
+            files[ i ] = fopen( file_names[ i + 1 ], "a+" );
         }
     }
 }
+
